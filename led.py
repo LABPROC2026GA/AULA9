@@ -1,11 +1,11 @@
 import time
 import RPi.GPIO as GPIO
 
-LED_PIN = 18
+LED_PIN = 17
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LED_PIN, GPIO.OUT)
 
-# Inicia o PWM no pino 18 com frequência inicial de 1 Hz
+# Inicia o PWM no pino 17 com frequência inicial de 1 Hz
 pwm_led = GPIO.PWM(LED_PIN, 1) 
 pwm_led.start(50) # 50% de Duty Cycle
 
@@ -34,4 +34,5 @@ try:
 
 finally:
     pwm_led.stop()
+    del pwm_led
     GPIO.cleanup()

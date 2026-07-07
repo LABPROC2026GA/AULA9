@@ -2,59 +2,103 @@ import time
 from gpiozero import Button, PWMLED, TonalBuzzer, Servo
 from gpiozero.tones import Tone
 
-# Configuração de Pinos
-btn_up = Button(2)     # Botão para aumentar BPM no GPIO 2
-btn_down = Button(3)   # Botão para diminuir BPM no GPIO 3
-buzzer = TonalBuzzer(17)
-servo = Servo(18)      # Recomenda-se rodar o daemon pigpiod para evitar jitter
-led = PWMLED(27)
+# ==========================
+# Configuração dos pinos
+# ==========================
+BTN_UP_PIN = 20
+BTN_DOWN_PIN = 21
 
-# Variáveis globais do Metrônomo
+BUZZER_PIN = 12
+SERVO_PIN = 18
+LED_PIN = 17
+
+btn_up = Button(BTN_UP_PIN, pull_up=True)
+btn_down = Button(BTN_DOWN_PIN, pull_up=True)
+
+buzzer = TonalBuzzer(BUZZER_PIN)
+servo = Servo(SERVO_PIN)
+led = PWMLED(LED_PIN)
+
+# ==========================
+# Configuração do metrônomo
+# ==========================
 bpm = 60
-min_bpm, max_bpm = 30, 240
-rodando = True
+MIN_BPM = 30
+MAX_BPM = 240
+
+DURACAO_BATIDA = 0.05
+
+posicao_servo = -1
+
 
 def aumentar_bpm():
     global bpm
-    if bpm < max_bpm:
+
+    if bpm < MAX_BPM:
         bpm += 5
         print(f"BPM: {bpm}")
 
+
 def diminuir_bpm():
     global bpm
-    if bpm > min_bpm:
-        bpm -= 5
+
+    if bpm > MIN_BPM:
+        bpm -= 2
         print(f"BPM: {bpm}")
 
-# Vinculando interrupções aos botões físicos
+
+# Botões
 btn_up.when_pressed = aumentar_bpm
 btn_down.when_pressed = diminuir_bpm
 
-posicao_servo = -1.0 # -1.0 (min) a 1.0 (max)
 
-print(f"Metrônomo iniciado a {bpm} BPM. Use os botões para alterar.")
+print(f"Metrônomo iniciado em {bpm} BPM")
+print("Botão GPIO 2 aumenta | GPIO 3 diminui")
+
 
 try:
     while True:
-        # Calcula o intervalo em segundos baseado no BPM atual
-        intervalo = 60.0 / bpm
-        
-        # Ação do Metrônomo
+
+        inicio = time.perf_counter()
+
+        # Tempo entre batidas
+        intervalo = 60 / bpm
+
+        # Movimento do pêndulo
         servo.value = posicao_servo
-        led.value = 1.0
-        buzzer.play(Tone("A4")) # Toca um som
-        time.sleep(0.05)        # Duração curta do "bip" visual e sonoro
+
+        # Pulso visual e sonoro
+        led.value = 1
+        buzzer.play(Tone(440))
+
+        time.sleep(DURACAO_BATIDA)
+
         buzzer.stop()
-        led.value = 0.0
-        
-        # Inverte a posição do servo para a próxima batida
-        posicao_servo = 1.0 if posicao_servo == -1.0 else -1.0
-        
-        # Espera o resto do tempo da batida
-        # Subtrai o 0.05s já consumido pelo bipe
-        time.sleep(intervalo - 0.05)
+        led.value = 0
+
+
+        # Alterna servo
+        if posicao_servo == -1:
+            posicao_servo = 1
+        else:
+            posicao_servo = -1
+
+
+        # Compensa tempo gasto
+        decorrido = time.perf_counter() - inicio
+        restante = intervalo - decorrido
+
+        if restante > 0:
+            time.sleep(restante)
+
 
 except KeyboardInterrupt:
-    print("Metrônomo encerrado.")
+    print("\nEncerrando metrônomo...")
+
+
+finally:
     buzzer.stop()
-    servo.detach()
+    servo.close()
+    led.close()
+    btn_up.close()
+    btn_down.close()

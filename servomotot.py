@@ -1,29 +1,35 @@
+import lgpio
 import time
-import RPi.GPIO as GPIO
 
-SERVO_PIN = 23
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(SERVO_PIN, GPIO.OUT)
+SERVO_PIN = 18
+PWM_FREQ = 50
 
-# Servomotores operam estritamente a 50Hz
-pwm_servo = GPIO.PWM(SERVO_PIN, 50)
-pwm_servo.start(0)
+h = lgpio.gpiochip_open(0)
+lgpio.gpio_claim_output(h, SERVO_PIN)
+
+def set_angle(angle):
+    # Limita entre 0 e 180 graus
+    angle = max(0, min(180, angle))
+
+    # Converte para duty cycle (2.5% a 12.5%)
+    duty = 2.5 + (angle / 180.0) * 10.0
+
+    lgpio.tx_pwm(h, SERVO_PIN, PWM_FREQ, duty)
 
 try:
-    print("Testando posições do Servomotor...")
-    
-    print("Posição: 0 graus")
-    pwm_servo.ChangeDutyCycle(2.5) # Pulso de 0.5ms
+    print("0°")
+    set_angle(0)
     time.sleep(2)
-    
-    print("Posição: 90 graus (Centro)")
-    pwm_servo.ChangeDutyCycle(7.5) # Pulso de 1.5ms
+
+    print("90°")
+    set_angle(90)
     time.sleep(2)
-    
-    print("Posição: 180 graus")
-    pwm_servo.ChangeDutyCycle(12.5) # Pulso de 2.5ms
+
+    print("180°")
+    set_angle(180)
     time.sleep(2)
 
 finally:
-    pwm_servo.stop()
-    GPIO.cleanup()
+    # Desliga o PWM
+    lgpio.tx_pwm(h, SERVO_PIN, 0, 0)
+    lgpio.gpiochip_close(h)
